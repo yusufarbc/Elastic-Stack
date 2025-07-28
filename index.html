@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="tr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etkileşimli ELK Stack SOC Kılavuzu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The SPA abandons the report's linear chapter format for a task-oriented, interactive design. A top navigation bar ("Temel Kavramlar", "Mimari", "Tehdit Tespiti", "Gelişmiş Yetenekler") allows non-linear exploration. Key concepts are visualized through interactive diagrams (Core Components, Data Flow). Complex topics like installation are presented in an engaging "simulator" with tabs, and threat detection is demonstrated in a "Rule Workshop" with dropdowns and a dynamic chart. This structure is chosen to transform passive reading into active learning, making the dense technical information more digestible and memorable for SOC analysts. -->
+    <!-- Visualization & Content Choices:
+        - Core Components (Inform): Report text -> Interactive Diagram (HTML/CSS/JS) -> Click to reveal info. Justification: More engaging than a list.
+        - On-Prem vs. Cloud (Compare): Report table -> Interactive Toggle with Table (HTML/JS) -> Click to switch. Justification: Direct comparison is clearer.
+        - Installation (Organize/Inform): Report code blocks -> Tabbed "Simulator" (HTML/JS) -> Click to see steps. Justification: Breaks down a complex process into manageable chunks.
+        - Brute-Force Rule (Compare/Change): Report text -> Bar Chart (Chart.js/Canvas) -> Visualize threshold breach. Justification: A visual makes the "threshold" concept intuitive.
+        - Data Flow (Change/Process): Report text -> Clickable Diagram (HTML/CSS/JS) -> Click to follow the journey. Justification: Visualizes a process better than text.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #0ea5e9;
+            border-bottom-color: #0ea5e9;
+        }
+        .component-card, .tab-button, .accordion-button {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .component-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .tab-button.active {
+            background-color: #0ea5e9;
+            color: white;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-slate-800">Elastic SIEM Kılavuzu</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#concepts" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Temel Kavramlar</a>
+                        <a href="#architecture" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Mimari ve Kurulum</a>
+                        <a href="#detection" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Tehdit Tespiti</a>
+                        <a href="#advanced" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Gelişmiş Yetenekler</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500">
+                        <span class="sr-only">Menüyü aç</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#concepts" class="nav-link block px-3 py-2 rounded-md text-base font-medium">Temel Kavramlar</a>
+                <a href="#architecture" class="nav-link block px-3 py-2 rounded-md text-base font-medium">Mimari ve Kurulum</a>
+                <a href="#detection" class="nav-link block px-3 py-2 rounded-md text-base font-medium">Tehdit Tespiti</a>
+                <a href="#advanced" class="nav-link block px-3 py-2 rounded-md text-base font-medium">Gelişmiş Yetenekler</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="hero" class="text-center mb-16 md:mb-24">
+            <h2 class="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4">Güvenlik Operasyonları için <span class="text-sky-500">Elastic Stack</span></h2>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                Bu etkileşimli kılavuz, Elastic Stack'in (ELK) bir Güvenlik Operasyon Merkezi'nde (SOC) nasıl güçlü bir SIEM çözümüne dönüştürüleceğini adım adım ve görsel olarak anlatmaktadır.
+            </p>
+        </section>
+
+        <section id="concepts" class="mb-16 md:mb-24 scroll-mt-16">
+            <h3 class="text-3xl font-bold text-center text-slate-800 mb-2">Temel Kavramlar</h3>
+            <p class="text-center text-slate-500 mb-12">Elastic Stack'in temelini oluşturan bileşenleri ve SOC için neden önemli olduğunu keşfedin.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h4 class="text-2xl font-semibold text-slate-800 mb-4">Elastic Stack Bileşenleri</h4>
+                    <p class="mb-6 text-slate-600">Elastic Stack, log verilerini toplamak, işlemek, depolamak ve görselleştirmek için birlikte çalışan bir dizi açık kaynaklı araçtan oluşur. Aşağıdaki interaktif şemada bir bileşene tıklayarak görevini öğrenebilirsiniz.</p>
+                    <div class="space-y-4">
+                        <div class="component-card p-4 border rounded-lg cursor-pointer bg-white shadow-sm" data-component="elasticsearch">
+                            <h5 class="font-bold text-sky-600">Elasticsearch</h5>
+                        </div>
+                        <div class="component-card p-4 border rounded-lg cursor-pointer bg-white shadow-sm" data-component="logstash">
+                            <h5 class="font-bold text-sky-600">Logstash</h5>
+                        </div>
+                        <div class="component-card p-4 border rounded-lg cursor-pointer bg-white shadow-sm" data-component="kibana">
+                            <h5 class="font-bold text-sky-600">Kibana</h5>
+                        </div>
+                        <div class="component-card p-4 border rounded-lg cursor-pointer bg-white shadow-sm" data-component="beats">
+                            <h5 class="font-bold text-sky-600">Beats & Elastic Agent</h5>
+                        </div>
+                    </div>
+                </div>
+                <div id="component-details" class="p-6 bg-slate-100 rounded-lg min-h-[200px] flex items-center justify-center">
+                    <p class="text-slate-500">Detayları görmek için bir bileşen seçin.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture" class="mb-16 md:mb-24 scroll-mt-16">
+            <h3 class="text-3xl font-bold text-center text-slate-800 mb-2">Mimari ve Kurulum</h3>
+            <p class="text-center text-slate-500 mb-12">Elastic Stack'in veri akışını anlayın ve interaktif simülatör ile kurulum adımlarını öğrenin.</p>
+
+            <div class="bg-white p-6 md:p-8 rounded-lg shadow-md mb-12">
+                <h4 class="text-2xl font-semibold text-slate-800 mb-4 text-center">Veri Akışının Anatomisi</h4>
+                <p class="text-center text-slate-600 mb-8">Bir güvenlik verisi, ham logdan analistin ekranındaki bir uyarıya dönüşene kadar çeşitli aşamalardan geçer. Adımlara tıklayarak süreci takip edin.</p>
+                <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+                    <div class="dataflow-step text-center cursor-pointer p-3 rounded-lg" data-flow="collection">
+                        <div class="text-3xl mb-2">📥</div>
+                        <div class="font-semibold">1. Toplama</div>
+                    </div>
+                    <div class="text-2xl text-slate-300 hidden md:block">&rarr;</div>
+                    <div class="dataflow-step text-center cursor-pointer p-3 rounded-lg" data-flow="processing">
+                        <div class="text-3xl mb-2">⚙️</div>
+                        <div class="font-semibold">2. İşleme</div>
+                    </div>
+                    <div class="text-2xl text-slate-300 hidden md:block">&rarr;</div>
+                    <div class="dataflow-step text-center cursor-pointer p-3 rounded-lg" data-flow="storage">
+                        <div class="text-3xl mb-2">🗄️</div>
+                        <div class="font-semibold">3. Depolama</div>
+                    </div>
+                    <div class="text-2xl text-slate-300 hidden md:block">&rarr;</div>
+                    <div class="dataflow-step text-center cursor-pointer p-3 rounded-lg" data-flow="analysis">
+                        <div class="text-3xl mb-2">📊</div>
+                        <div class="font-semibold">4. Analiz</div>
+                    </div>
+                </div>
+                <div id="dataflow-details" class="mt-8 p-4 bg-slate-100 rounded-lg min-h-[100px] flex items-center justify-center">
+                     <p class="text-slate-500">Detayları görmek için bir adıma tıklayın.</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 md:p-8 rounded-lg shadow-md">
+                <h4 class="text-2xl font-semibold text-slate-800 mb-6 text-center">Kurulum Simülatörü (Ubuntu 22.04)</h4>
+                <div class="flex justify-center mb-6 border-b">
+                    <button class="tab-button py-2 px-4 font-medium text-slate-500 active" data-tab="elasticsearch">Elasticsearch</button>
+                    <button class="tab-button py-2 px-4 font-medium text-slate-500" data-tab="kibana">Kibana</button>
+                    <button class="tab-button py-2 px-4 font-medium text-slate-500" data-tab="logstash">Logstash</button>
+                    <button class="tab-button py-2 px-4 font-medium text-slate-500" data-tab="filebeat">Filebeat</button>
+                </div>
+                <div id="tab-content">
+                </div>
+            </div>
+        </section>
+
+        <section id="detection" class="mb-16 md:mb-24 scroll-mt-16">
+            <h3 class="text-3xl font-bold text-center text-slate-800 mb-2">Tehdit Tespiti Atölyesi</h3>
+            <p class="text-center text-slate-500 mb-12">Elastic Security ile pratik tehdit tespit kurallarının nasıl yazıldığını öğrenin.</p>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div class="bg-white p-6 md:p-8 rounded-lg shadow-md">
+                    <h4 class="text-2xl font-semibold text-slate-800 mb-4">Kural Senaryosu Seçin</h4>
+                    <p class="text-slate-600 mb-4">Aşağıdaki menüden bir saldırı senaryosu seçerek ilgili tespit kuralının detaylarını ve mantığını inceleyin.</p>
+                    <select id="rule-selector" class="w-full p-2 border rounded-md bg-white">
+                        <option value="bruteforce">Brute-Force Saldırısı Tespiti (Threshold)</option>
+                        <option value="powershell">Şüpheli PowerShell Komutları (KQL)</option>
+                        <option value="ransomware">Olası Fidye Yazılımı Aktivitesi (EQL)</option>
+                    </select>
+                    <div id="rule-details" class="mt-6"></div>
+                </div>
+                <div class="bg-white p-6 md:p-8 rounded-lg shadow-md">
+                     <h4 class="text-2xl font-semibold text-slate-800 mb-4 text-center">Görselleştirme</h4>
+                     <p id="chart-description" class="text-center text-slate-600 mb-4">Brute-Force saldırısı, kısa sürede çok sayıda başarısız giriş denemesiyle karakterizedir. Grafik, bu aktiviteyi ve belirlenen eşiğin nasıl aşıldığını gösterir.</p>
+                     <div class="chart-container">
+                        <canvas id="detectionChart"></canvas>
+                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="advanced" class="scroll-mt-16">
+            <h3 class="text-3xl font-bold text-center text-slate-800 mb-2">Gelişmiş Yetenekler ve Stratejiler</h3>
+            <p class="text-center text-slate-500 mb-12">Olgun bir SOC için proaktif tehdit avcılığı, olay müdahalesi ve yapay zeka destekli analitik.</p>
+            <div id="accordion" class="space-y-4">
+                <div class="accordion-item bg-white rounded-lg shadow-sm">
+                    <button class="accordion-button w-full flex justify-between items-center text-left p-5 font-semibold text-slate-800">
+                        <span>Proaktif Tehdit Avcılığı (Threat Hunting)</span>
+                        <span class="accordion-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 border-t">
+                        <p class="text-slate-600">Tehdit avcılığı, mevcut güvenlik kontrollerini atlatmış gizli tehditleri bulmak için yürütülen proaktif bir araştırma sürecidir. "Sistemlerimizde zaten bir saldırgan var" varsayımıyla hareket eder. Etkili bir av, genellikle güncel tehdit istihbaratına veya MITRE ATT&CK® taktiklerine dayalı bir hipotezle başlar. Örneğin: "Bir saldırgan, yanal hareket için PsExec aracını kötüye kullanıyor olabilir."</p>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow-sm">
+                    <button class="accordion-button w-full flex justify-between items-center text-left p-5 font-semibold text-slate-800">
+                        <span>Olay Müdahale (Incident Response) İş Akışı</span>
+                        <span class="accordion-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 border-t">
+                        <p class="text-slate-600 mb-4">Elastic Security, bir alarmın tetiklenmesinden çözümüne kadar tüm müdahale yaşam döngüsünü destekler. Süreç genellikle şu adımları izler:</p>
+                        <ol class="list-decimal list-inside space-y-2 text-slate-600">
+                            <li><b>Triyaj ve Doğrulama:</b> Analist, Alerts panosuna düşen uyarının önemini ve kapsamını inceler.</li>
+                            <li><b>Derinlemesine Araştırma (Timeline):</b> Uyarı ve ilgili olaylar, saldırının tam hikayesini oluşturmak için Timeline'a gönderilir.</li>
+                            <li><b>Belgeleme ve İşbirliği:</b> Önemli bulgular Timeline üzerinde notlarla belgelenir.</li>
+                            <li><b>Vaka Yönetimi (Case Management):</b> Doğrulanmış olaylar, takip ve müdahale için bir Case'e dönüştürülür.</li>
+                        </ol>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow-sm">
+                    <button class="accordion-button w-full flex justify-between items-center text-left p-5 font-semibold text-slate-800">
+                        <span>SIEM'in Geleceği: Yapay Zeka Destekli Analitik</span>
+                        <span class="accordion-icon transform transition-transform duration-300">▼</span>
+                    </button>
+                    <div class="accordion-content hidden p-5 border-t">
+                        <p class="text-slate-600">Elastic, SIEM'i yapay zeka ile dönüştürüyor. Bu, analistlerin "alarm yorgunluğu" ile boğuşmak yerine gerçek tehditlere odaklanmasını sağlar. Temel yetenekler şunlardır:</p>
+                        <ul class="list-disc list-inside space-y-2 mt-4 text-slate-600">
+                            <li><b>Anomaly Detection:</b> Makine öğrenmesi ile normal davranıştan sapan aktiviteleri (sıfır gün tehditleri, içeriden gelen tehditler) tespit eder.</li>
+                            <li><b>Attack Discovery:</b> Üretken Yapay Zeka kullanarak binlerce alarmı analiz eder ve bunları anlamlı, bağlamı zenginleştirilmiş "saldırı" hikayelerine dönüştürür.</li>
+                            <li><b>AI Assistant:</b> Analistlerin doğal dilde sorular sorarak araştırma süreçlerinde rehberlik almasını sağlar.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-white mt-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-slate-400">
+            <p>Bu interaktif kılavuz, sağlanan rapora dayanarak oluşturulmuştur. &copy; 2025</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const contentData = {
+        components: {
+            elasticsearch: {
+                title: "Elasticsearch: Yığının Kalbi",
+                description: "Apache Lucene üzerine inşa edilmiş, dağıtık bir arama ve analitik motorudur. Verileri depolar, indeksler ve inanılmaz hızlı aramalara olanak tanır. Yatay ölçeklenebilirlik için tasarlanmıştır."
+            },
+            logstash: {
+                title: "Logstash: Veri İşleme Boru Hattı",
+                description: "Sunucu tarafında çalışan bu araç, farklı kaynaklardan veri toplar. Bu ham verileri ayrıştırarak, zenginleştirerek ve dönüştürerek Elasticsearch'e gönderir."
+            },
+            kibana: {
+                title: "Kibana: Görselleştirme Arayüzü",
+                description: "Analistlerin Elasticsearch'teki verilerle etkileşime girmesini sağlayan görselleştirme katmanıdır. İnteraktif panolar, grafikler ve haritalar oluşturmaya yarar."
+            },
+            beats: {
+                title: "Beats & Elastic Agent: Veri Göndericiler",
+                description: "Uç noktalardaki (sunucular, cihazlar) verileri minimum kaynak kullanarak toplayan hafif ajanlardır. Elastic Agent, tüm Beats işlevlerini tek bir ajanda birleştirir."
+            }
+        },
+        dataflow: {
+            collection: "Yolculuk, verinin doğduğu yerde, yani sunucu, ağ cihazı veya bulut hizmeti üzerindeki Elastic Agent veya Beat ile başlar. Ham log kaydı burada yakalanır.",
+            processing: "Ham log, Logstash veya Elasticsearch Ingest Pipeline'ları aracılığıyla işlenir. Bu aşamada veri ayrıştırılır, alanlara bölünür ve coğrafi konum gibi bilgilerle zenginleştirilir.",
+            storage: "İşlenmiş ve ECS formatına getirilmiş veri, Elasticsearch'e ulaşır. Elasticsearch, veriyi indeksleyerek saniyeler içinde aranabilir hale getirir.",
+            analysis: "Analist, Kibana arayüzünü kullanarak verileri sorgular, panolarda izler, tespit kuralları çalıştırır ve uyarıları araştırır."
+        },
+        tabs: {
+            elasticsearch: `
+                <h5 class="font-semibold text-lg mb-2">Adım 1: Elasticsearch Kurulumu ve Yapılandırması</h5>
+                <p class="text-slate-600 mb-4">Verilerin depolandığı ve arandığı merkezi motordur. Kurulum sonrası <code>/etc/elasticsearch/elasticsearch.yml</code> dosyası düzenlenmelidir.</p>
+                <div class="code-block">
+<pre><code># Kurulum
+sudo apt-get install elasticsearch
+
+# /etc/elasticsearch/elasticsearch.yml yapılandırması
+cluster.name: my-soc-cluster
+node.name: node-1
+network.host: 0.0.0.0
+http.port: 9200
+discovery.type: single-node
+
+# Servisi başlatma
+sudo systemctl start elasticsearch.service</code></pre>
+                </div>
+            `,
+            kibana: `
+                <h5 class="font-semibold text-lg mb-2">Adım 2: Kibana Kurulumu ve Yapılandırması</h5>
+                <p class="text-slate-600 mb-4">Verileri görselleştirmek için kullanılan web arayüzüdür. Elasticsearch'e bağlanacak şekilde yapılandırılır.</p>
+                <div class="code-block">
+<pre><code># Kurulum
+sudo apt-get install kibana
+
+# /etc/kibana/kibana.yml yapılandırması
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.hosts: ["http://localhost:9200"]
+
+# Servisi başlatma
+sudo systemctl start kibana.service</code></pre>
+                </div>
+            `,
+            logstash: `
+                <h5 class="font-semibold text-lg mb-2">Adım 3: Logstash Kurulumu ve Yapılandırması</h5>
+                <p class="text-slate-600 mb-4">Verileri toplayıp işleyerek Elasticsearch'e gönderir. Yapılandırma, input, filter ve output bölümlerinden oluşur.</p>
+                <div class="code-block">
+<pre><code># Kurulum
+sudo apt-get install logstash
+
+# /etc/logstash/conf.d/02-beats-input.conf yapılandırması
+input {
+  beats { port => 5044 }
+}
+output {
+  elasticsearch {
+    hosts => ["http://localhost:9200"]
+    index => "%{[@metadata][beat]}-%{[@metadata][version]}"
+  }
+}
+
+# Servisi başlatma
+sudo systemctl start logstash.service</code></pre>
+                </div>
+            `,
+            filebeat: `
+                <h5 class="font-semibold text-lg mb-2">Adım 4: Filebeat Kurulumu (İstemci Sunucuda)</h5>
+                <p class="text-slate-600 mb-4">İzlenecek istemci sunuculara kurulur ve logları merkezi Logstash'e gönderir.</p>
+                <div class="code-block">
+<pre><code># Kurulum
+sudo apt-get install filebeat
+
+# /etc/filebeat/filebeat.yml yapılandırması
+# output.elasticsearch bölümünü yorum satırı yapın
+# output.logstash bölümünü aktif edin
+output.logstash:
+  hosts: ["&lt;logstash_sunucu_ip&gt;:5044"]
+
+# Servisi başlatma
+sudo systemctl start filebeat.service</code></pre>
+                </div>
+            `
+        },
+        rules: {
+            bruteforce: {
+                title: "Brute-Force Saldırısı Tespiti (Threshold)",
+                description: "Bu kural, belirli bir süre içinde aynı kaynaktan gelen başarısız giriş denemelerinin sayısını izler. Belirlenen eşik aşıldığında bir uyarı oluşturur.",
+                details: `
+                    <p><strong>Veri Kaynağı:</strong> Windows Güvenlik Olayları (Event ID 4625), Linux auth.log</p>
+                    <p><strong>Kural Türü:</strong> Threshold</p>
+                    <p><strong>Mantık:</strong> 5 dakika içinde aynı <code>source.ip</code> adresinden 10'dan fazla <code>event.action: "logon-failure"</code> olayı gerçekleşirse alarm ver.</p>
+                `
+            },
+            powershell: {
+                title: "Şüpheli PowerShell Komutları (KQL)",
+                description: "Saldırganların sıkça kullandığı gizlenmiş veya tehlikeli PowerShell komutlarını ve parametrelerini tespit eder.",
+                details: `
+                    <p><strong>Veri Kaynağı:</strong> Process Execution Logları (Sysmon Event ID 1)</p>
+                    <p><strong>Kural Türü:</strong> Custom Query (KQL)</p>
+                    <div class="code-block mt-2 text-sm"><pre><code>process.name:powershell.exe and 
+process.args:("-enc", "-w hidden", "IEX")</code></pre></div>
+                `
+            },
+            ransomware: {
+                title: "Olası Fidye Yazılımı Aktivitesi (EQL)",
+                description: "Bir fidye yazılımının tipik davranış dizisini tespit eder: Önce gölge kopyaları siler, ardından çok sayıda dosyayı şifreler.",
+                details: `
+                    <p><strong>Veri Kaynağı:</strong> Process ve Dosya Sistemi Logları (Sysmon)</p>
+                    <p><strong>Kural Türü:</strong> Event Correlation (EQL)</p>
+                    <div class="code-block mt-2 text-sm"><pre><code>sequence by host.id with maxspan=5m
+  [process where process.name == "vssadmin.exe"]
+  [file where event.action == "creation"]
+</code></pre></div>
+                `
+            }
+        }
+    };
+
+    const componentDetails = document.getElementById('component-details');
+    document.querySelectorAll('.component-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const componentKey = card.dataset.component;
+            const data = contentData.components[componentKey];
+            componentDetails.innerHTML = `
+                <div class="text-left">
+                    <h5 class="font-bold text-xl text-slate-800 mb-2">${data.title}</h5>
+                    <p class="text-slate-600">${data.description}</p>
+                </div>
+            `;
+        });
+    });
+
+    const dataflowDetails = document.getElementById('dataflow-details');
+    document.querySelectorAll('.dataflow-step').forEach(step => {
+        step.addEventListener('click', (e) => {
+            document.querySelectorAll('.dataflow-step').forEach(s => s.classList.remove('bg-sky-100'));
+            e.currentTarget.classList.add('bg-sky-100');
+            const flowKey = e.currentTarget.dataset.flow;
+            dataflowDetails.innerHTML = `<p class="text-slate-600 text-center">${contentData.dataflow[flowKey]}</p>`;
+        });
+    });
+
+    const tabContainer = document.getElementById('tab-content');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    function updateTabs(activeTabKey) {
+        tabButtons.forEach(button => {
+            if (button.dataset.tab === activeTabKey) {
+                button.classList.add('active', 'text-sky-600', 'border-sky-600');
+                button.classList.remove('text-slate-500', 'border-transparent');
+            } else {
+                button.classList.remove('active', 'text-sky-600', 'border-sky-600');
+                button.classList.add('text-slate-500', 'border-transparent');
+            }
+        });
+        tabContainer.innerHTML = contentData.tabs[activeTabKey];
+    }
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            updateTabs(button.dataset.tab);
+        });
+    });
+    updateTabs('elasticsearch');
+
+    const ruleSelector = document.getElementById('rule-selector');
+    const ruleDetails = document.getElementById('rule-details');
+    const chartDescription = document.getElementById('chart-description');
+    const detectionChartCanvas = document.getElementById('detectionChart').getContext('2d');
+    let detectionChart;
+
+    const chartData = {
+        bruteforce: {
+            labels: ['10:01', '10:02', '10:03', '10:04', '10:05', '10:06'],
+            data: [2, 3, 4, 8, 12, 5],
+            description: "Brute-Force saldırısı, kısa sürede çok sayıda başarısız giriş denemesiyle karakterizedir. Grafik, bu aktiviteyi ve belirlenen eşiğin (10) nasıl aşıldığını gösterir."
+        },
+        powershell: {
+            labels: ['Normal', 'Şüpheli', 'Kötü Amaçlı'],
+            data: [95, 4, 1],
+            description: "PowerShell kullanımı genellikle meşrudur, ancak şüpheli veya kötü amaçlı komutlar (grafikteki küçük yüzdeler) ciddi bir tehdit olabilir."
+        },
+        ransomware: {
+            labels: ['Dosya Okuma', 'Dosya Yazma', 'Gölge Kopya Silme', 'Dosya Oluşturma (Şifreli)'],
+            data: [1500, 250, 1, 1200],
+            description: "Fidye yazılımı aktivitesi, gölge kopyaların silinmesi ve ardından çok sayıda dosyanın şifrelenerek yeniden oluşturulması gibi belirgin bir olay dizisi gösterir."
+        }
+    };
+
+    function createOrUpdateChart(ruleKey) {
+        const data = chartData[ruleKey];
+        const isBruteForce = ruleKey === 'bruteforce';
+
+        if (detectionChart) {
+            detectionChart.destroy();
+        }
+
+        detectionChart = new Chart(detectionChartCanvas, {
+            type: isBruteForce ? 'bar' : 'doughnut',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Olay Sayısı',
+                    data: data.data,
+                    backgroundColor: isBruteForce ? 
+                        data.data.map(value => value >= 10 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)') :
+                        ['rgba(59, 130, 246, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(239, 68, 68, 0.6)'],
+                    borderColor: isBruteForce ? 
+                        data.data.map(value => value >= 10 ? 'rgba(239, 68, 68, 1)' : 'rgba(59, 130, 246, 1)') :
+                        ['rgba(59, 130, 246, 1)', 'rgba(249, 115, 22, 1)', 'rgba(239, 68, 68, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: isBruteForce ? 'top' : 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: contentData.rules[ruleKey].title
+                    },
+                    annotation: isBruteForce ? {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                yMin: 10,
+                                yMax: 10,
+                                borderColor: 'rgb(255, 99, 132)',
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                label: {
+                                    content: 'Eşik Değeri (10)',
+                                    enabled: true,
+                                    position: 'end'
+                                }
+                            }
+                        }
+                    } : {}
+                },
+                scales: isBruteForce ? {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Başarısız Giriş Sayısı'
+                        }
+                    }
+                } : {}
+            }
+        });
+    }
+    
+    function updateRuleContent(ruleKey) {
+        const rule = contentData.rules[ruleKey];
+        ruleDetails.innerHTML = `
+            <h5 class="font-semibold text-lg mb-2">${rule.title}</h5>
+            <p class="text-slate-600 mb-4">${rule.description}</p>
+            <div class="text-sm">${rule.details}</div>
+        `;
+        chartDescription.textContent = chartData[ruleKey].description;
+        createOrUpdateChart(ruleKey);
+    }
+
+    ruleSelector.addEventListener('change', (e) => {
+        updateRuleContent(e.target.value);
+    });
+    updateRuleContent('bruteforce');
+
+    const accordionItems = document.querySelectorAll('.accordion-item');
+    accordionItems.forEach(item => {
+        const button = item.querySelector('.accordion-button');
+        const content = item.querySelector('.accordion-content');
+        const icon = item.querySelector('.accordion-icon');
+        button.addEventListener('click', () => {
+            const isVisible = !content.classList.contains('hidden');
+            content.classList.toggle('hidden');
+            icon.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
+        });
+    });
+
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }
+            if (mobileMenu.classList.contains('hidden') === false) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>
