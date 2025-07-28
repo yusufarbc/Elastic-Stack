@@ -150,11 +150,6 @@ Bu proje MIT lisansı altında dağıtılmaktadır. Detaylar için `LICENSE` dos
 - **Chart.js**: Güzel görselleştirmeler için
 - **MITRE ATT&CK**: Tehdit modelleme için
 
-## 📞 İletişim
-
-Proje Sahibi: [@yourusername](https://github.com/yourusername)
-
-Proje Linki: [https://github.com/yourusername/Elastic-Stack](https://github.com/yourusername/Elastic-Stack)
 
 ---
 
