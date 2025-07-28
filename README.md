@@ -139,9 +139,6 @@ chartData.newrule = {
 4. Branch'e push edin (`git push origin feature/AmazingFeature`)
 5. Pull Request açın
 
-## 📄 Lisans
-
-Bu proje MIT lisansı altında dağıtılmaktadır. Detaylar için `LICENSE` dosyasına bakın.
 
 ## 🙏 Teşekkürler
 
